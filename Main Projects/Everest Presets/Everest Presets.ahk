@@ -51,8 +51,6 @@ Gui, Add, Button, default gbuttonScript, &Update mod list
 root := TV_Add("All Presets")
 
 ; Adds nodes
-; [x]: Add default checks in separate file; e.g. default check prideline
-; [ ]: Combine all presets into one file
 Loop, Files, %presetFolder%\*.txt
 {
 	if (A_LoopFileName = "examplePreset.txt")
