@@ -3,47 +3,56 @@
 SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 
-;gives the program a name
+; gives the program a name
 appName := "Everest Presets"
 
-;check if in right directory
+; check if in right directory
 if !(RegExMatch(A_WorkingDir, "\\Celeste\\Mods$"))
-{
-	MsgBox,, %appName%, Move me to \Celeste\Mods and try again!
-	ExitApp
-}
+	{
+		MsgBox,, %appName%, Move me to \Celeste\Mods and try again!
+		ExitApp
+	}
 
-;Creates preset folder
+; Creates preset folder
 presetFolder := "Presets"
 if !FileExist(presetFolder)
-{
-	FileCreateDir, %presetFolder%
-	FileAppend,
-	(LTrim,On
-	`# This is a preset file. Add names of mods below to add them to the preset.
-	`# Lines starting with `# are ignored.
-	
-	exampleMod1.zip
-	exampleMod2.zip
-	exampleMod3.zip
-	), %presetFolder%\examplePreset.txt
-	
-	MsgBox,, %appName%, Celeste\Mods\%presetFolder% created! Add some presets and run me again.
-	ExitApp
-}
+	{
+		FileCreateDir, %presetFolder%
+		FileAppend,
+		(LTrim,On
+		`# This is a preset file. Add names of mods below to add them to the preset.
+		`# If the line doesn't end with .zip, it will be appended
+		`# '`#' acts as a comment: lines starting with it are ignored, along with any text preceded by it
+		`# Lines starting with * are selected by default.
+		`# **ALL** as the first line will select the entire preset by default.
 
-;state storage
+		`# If '`#' removed, would check all by default
+		`# **ALL**
+		exampleMod1 `# Unchecked by default and will be listed as exampleMod1.zip
+		`# Will not be listed
+		`# exampleMod2.zip
+		`# Will be checked by default
+		* exampleMod3.zip
+		), %presetFolder%\examplePreset.txt
+		
+		MsgBox,, %appName%, Celeste\Mods\%presetFolder% created! Add some presets and run me again.
+		ExitApp
+	}
+
+; state storage
 prevState := []
 curState := []
 
-;Creates GUI
+; Creates GUI
 Gui, New
 
 Gui, Add, TreeView, Checked AltSubmit gtvClicked h300 w300
 Gui, Add, Button, default gbuttonScript, &Update mod list
 root := TV_Add("All Presets")
 
-;ADD YOUR NODES HERE
+; Adds nodes
+; [x]: Add default checks in separate file; e.g. default check prideline
+; [ ]: Combine all presets into one file
 Loop, Files, %presetFolder%\*.txt
 {
 	if (A_LoopFileName = "examplePreset.txt")
@@ -51,57 +60,85 @@ Loop, Files, %presetFolder%\*.txt
 		continue
 	}
 	ID := TV_Add(A_LoopFileName, root)
+	; tracks default checking
+	allChecked := False
 	Loop, Read, %presetFolder%\%A_LoopFileName%
 	{
-		if (RegExMatch(A_LoopReadLine, "^#"))
-		{
-			continue
-		}
-		if (A_LoopReadLine = "")
-		{
-			continue
-		}
-		lineItem := TV_Add(A_LoopReadLine, ID)
+		; tracks default checking
+		itemChecked := False
+		; comment handling
+		newItem := RegExReplace(A_LoopReadLine, "\s*#.*")
+		if (newItem = "")
+			{
+				continue
+			}
+		if (newItem = "**ALL**")
+			{
+				allChecked := True
+				continue
+			}
+		if (RegExMatch(newItem, "^\*"))
+			{
+				itemChecked := True
+				newItem := RegExReplace(newItem, "^\*\s*")
+			}
+		if (!RegExMatch(newItem, "\.zip$"))
+			{
+				newItem .= .zip
+			}
+		lineItem := TV_Add(newItem, ID, ((itemChecked | allChecked) ? "" : "-") "Check")
 	}
 }
 
-;Show the window and its TreeView.
+; Show the window and its TreeView.
 Gui, Show, AutoSize Center, %appName%
+; simulates a click to trigger default checks
+leftClick()
+; selects root
+TV_Modify(root)
 return
 
-;Run on close
+; Run on close
 GuiClose:
 ExitApp
 
-;Exit Script (Win + Esc)
+; Exit Script (Win + Esc)
 #Esc::
 ExitApp
 return
 
-;runs on treeView clicked
+; runs on treeView clicked
 tvClicked:
-;left click
+; left click
 if (A_GuiEvent = "Normal")
 {
 	global curState, prevState
-	updateState()
-	
-	;if something has been checked or unchecked
-	if (prevState.length() != curState.length())
-	{
-		;gets checked item and selects it
-		changedID := % getCheckChange()
-		TV_Modify(changedID)
-		
-		;updates other nodes
-		updateChildren(changedID)
-		updateParent(changedID)
-	}
-	updateState()
+	leftClick()
 }
 return
 
-;runs when button clicked
+; runs on left click
+leftClick()
+{
+	global curState, prevState
+		updateState()
+		
+		; if something has been checked or unchecked
+		if (prevState.length() != curState.length())
+		{
+			; gets checked item and selects it
+			changedID := % getCheckChange()
+			TV_Modify(changedID)
+			
+			; updates other nodes
+			updateChildren(changedID)
+			updateParent(changedID)
+		}
+		updateState()
+	return
+}
+
+; runs when button clicked
 buttonScript:
 createBlacklist()
 MsgBox,, %appName%, Everest mod list updated!`nEverest will update dependencies on launch.
@@ -109,12 +146,12 @@ Gui, Destroy
 ExitApp
 return
 
-;figures out which item was checked
+; figures out which item was checked
 getCheckChange()
 {
 	global prevState, curState
 	
-	;assumes boxes are checked more than unchecked
+	; assumes boxes are checked more than unchecked
 	if (prevState.length() > curState.length())
 	{
 		smallArr := curState
@@ -126,7 +163,7 @@ getCheckChange()
 		largeArr := curState
 	}
 	
-	;loops through smaller state and removes each item from the larger state
+	; loops through smaller state and removes each item from the larger state
 	for indexSmall in smallArr
 	{
 		for indexLarge in largeArr
@@ -139,27 +176,27 @@ getCheckChange()
 		}
 	}
 	
-	;the only item left in the larger state is the changed one
+	; the only item left in the larger state is the changed one
 	return % largeArr[1]
 }
 
 updateState()
 {
-	;changes states
+	; changes states
 	global prevState := % curState
 	global curState := []
 	global root
 	
-	;starts at root
+	; starts at root
 	ID := root
 	
-	;adds root if checked
+	; adds root if checked
 	if (ID = TV_Get(ID, "C"))
 	{
 		curState.Push(ID)
 	}
 	
-	;loops through all others and adds all checked items to current state
+	; loops through all others and adds all checked items to current state
 	Loop
 	{
 		ID := TV_GetNext(ID, "Checked")
@@ -175,7 +212,7 @@ updateChildren(ID)
 {
 	childID := TV_GetChild(ID)
 	
-	;recursively loops through all children
+	; recursively loops through all children
 	Loop
 	{
 		if (childID = 0)
@@ -183,7 +220,7 @@ updateChildren(ID)
 			break
 		}
 		
-		;sets all children to match state of parent
+		; sets all children to match state of parent
 		TV_Modify(childID, (TV_Get(ID, "C") ? "" : "-") "Check")
 		updateChildren(childID)
 		childID := TV_GetNext(ChildID)
@@ -192,14 +229,14 @@ updateChildren(ID)
 
 updateParent(ID)
 {
-	;set check var
+	; set check var
 	allSibChecked := true
 	
-	;get parent and first sibling
+	; get parent and first sibling
 	parentID := TV_GetParent(ID)
 	siblingID := TV_GetChild(parentID)
 	
-	;loop all siblings
+	; loop all siblings
 	Loop
 	{
 		if (siblingID = 0)
@@ -207,7 +244,7 @@ updateParent(ID)
 			break
 		}
 		
-		;if any siblings unchecked, break
+		; if any siblings unchecked, break
 		if (TV_Get(siblingID, "C") != siblingID)
 		{
 			allSibChecked := false
@@ -216,10 +253,10 @@ updateParent(ID)
 		siblingID := TV_GetNext(siblingID)
 	}
 	
-	;set parent to checked if all children checked
+	; set parent to checked if all children checked
 	TV_Modify(parentID, (allSibChecked ? "" : "-") "Check")
 	
-	;call on parent, stops when no parent
+	; call on parent, stops when no parent
 	if (parentID != 0)
 	{
 		updateParent(parentID)
@@ -230,7 +267,7 @@ createBlacklist()
 {
 	global curState
 	
-	;removes old blacklist and starts new with header
+	; removes old blacklist and starts new with header
 	FileDelete, blacklist.txt
 	FileAppend,
 	(LTrim,On
@@ -240,7 +277,7 @@ createBlacklist()
 	Presets
 	), blacklist.txt
 	
-	;Adds checked .zips to whitelist
+	; Adds checked .zips to whitelist
 	whitelist :=
 	for index in curState
 	{
@@ -251,7 +288,7 @@ createBlacklist()
 		}
 	}
 	
-	;Writes all .zips to blacklist with # if in whitelist
+	; Writes all .zips to blacklist with # if in whitelist
 	Loop, Files, *.zip
 	{
 		FileAppend, `n, blacklist.txt
