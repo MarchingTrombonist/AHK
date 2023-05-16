@@ -1,7 +1,7 @@
-#NoEnv  ; Recommended for performance and compatibility (future AutoHotkey releases.
+#NoEnv ; Recommended for performance and compatibility (future AutoHotkey releases.
 ; #Warn  ; Enable warnings to assist (detecting common errors.
-SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
-SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+SendMode Input ; Recommended for new scripts due to its superior speed and reliability.
+SetWorkingDir %A_ScriptDir% ; Ensures a consistent starting directory.
 
 ;state storage
 prevState := []
@@ -22,7 +22,6 @@ P2C1 := TV_Add("Parent 2's first child", P2)
 P2C2 := TV_Add("Parent 2's second child", P2)
 P2C2C1 := TV_Add("Child 2's first child", P2C2)
 
-
 ;Show the window and its TreeView.
 Gui, Show, AutoSize Center
 return
@@ -38,50 +37,50 @@ return
 
 ;runs on treeView clicked
 tvClicked:
-;left click
-if (A_GuiEvent = "Normal")
-{
-	global curState, prevState
-	updateState()
-	
-	;if something has been checked or unchecked
-	if (prevState.length() != curState.length())
+	;left click
+	if (A_GuiEvent = "Normal")
 	{
-		;gets checked item and selects it
-		changedID := % getCheckChange()
-		TV_Modify(changedID)
-		
-		;updates other nodes
-		updateChildren(changedID)
-		updateParent(changedID)
+		global curState, prevState
+		updateState()
+
+		;if something has been checked or unchecked
+		if (prevState.length() != curState.length())
+		{
+			;gets checked item and selects it
+			changedID := % getCheckChange()
+			TV_Modify(changedID)
+
+			;updates other nodes
+			updateChildren(changedID)
+			updateParent(changedID)
+		}
+		updateState()
 	}
-	updateState()
-}
 return
 
 ;runs when button clicked
 buttonScript:
-MsgBox,,, You clicked the button!
-Gui, Destroy
+	MsgBox,,, You clicked the button!
+	Gui, Destroy
 return
 
 ;figures out which item was checked
 getCheckChange()
 {
 	global prevState, curState
-	
+
 	;assumes boxes are checked more than unchecked
 	if (prevState.length() > curState.length())
 	{
 		smallArr := curState
 		largeArr := prevState
-	} 
+	}
 	else
 	{
 		smallArr := prevState
 		largeArr := curState
 	}
-	
+
 	;loops through smaller state and removes each item from the larger state
 	for indexSmall in smallArr
 	{
@@ -94,7 +93,7 @@ getCheckChange()
 			}
 		}
 	}
-	
+
 	;the only item left in the larger state is the changed one
 	return % largeArr[1]
 }
@@ -105,16 +104,16 @@ updateState()
 	global prevState := % curState
 	global curState := []
 	global root
-	
+
 	;starts at root
 	ID := root
-	
+
 	;adds root if checked
 	if (ID = TV_Get(ID, "C"))
 	{
 		curState.Push(ID)
 	}
-	
+
 	;loops through all others and adds all checked items to current state
 	Loop
 	{
@@ -130,7 +129,7 @@ updateState()
 updateChildren(ID)
 {
 	childID := TV_GetChild(ID)
-	
+
 	;recursively loops through all children
 	Loop
 	{
@@ -138,7 +137,7 @@ updateChildren(ID)
 		{
 			break
 		}
-		
+
 		;sets all children to match state of parent
 		TV_Modify(childID, (TV_Get(ID, "C") ? "" : "-") "Check")
 		updateChildren(childID)
@@ -150,11 +149,11 @@ updateParent(ID)
 {
 	;set check var
 	allSibChecked := true
-	
+
 	;get parent and first sibling
 	parentID := TV_GetParent(ID)
 	siblingID := TV_GetChild(parentID)
-	
+
 	;loop all siblings
 	Loop
 	{
@@ -162,7 +161,7 @@ updateParent(ID)
 		{
 			break
 		}
-		
+
 		;if any siblings unchecked, break
 		if (TV_Get(siblingID, "C") != siblingID)
 		{
@@ -171,10 +170,10 @@ updateParent(ID)
 		}
 		siblingID := TV_GetNext(siblingID)
 	}
-	
+
 	;set parent to checked if all children checked
 	TV_Modify(parentID, (allSibChecked ? "" : "-") "Check")
-	
+
 	;call on parent, stops when no parent
 	if (parentID != 0)
 	{
