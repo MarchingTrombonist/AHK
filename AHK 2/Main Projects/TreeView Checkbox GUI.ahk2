@@ -1,0 +1,67 @@
+#Requires AutoHotkey v2.0
+#SingleInstance
+
+MyGui := Gui()
+TV := MyGui.Add("TreeView", "Checked h300 w300")
+
+TV.OnEvent("ItemCheck", checked)
+
+P1 := TV.Add("First parent")
+P1C1 := TV.Add("Parent 1's first child", P1)  ; Specify P1 to be this item's parent.
+P2 := TV.Add("Second parent")
+P2C1 := TV.Add("Parent 2's first child", P2)
+P2C2 := TV.Add("Parent 2's second child", P2)
+P2C2C1 := TV.Add("Child 2's first child", P2C2)
+
+MyGui.Show  ; Show the window and its TreeView.
+
+checked(GuiCtrl, itemID, checked) {
+    itemID := GuiCtrl.Modify(itemID, "Select")
+    updateChildren(itemID)
+    updateParent(itemID)
+} 
+
+updateChildren(ID) {
+    childID := TV.GetChild(ID)
+
+    Loop {
+        if (childID = 0) {
+            break
+        }
+
+        TV.Modify(childID, (TV.Get(ID, "C") ? "" : "-") "Check")
+        updateChildren(childID)
+        childID := TV.GetNext(ChildID)
+    }
+}
+
+updateParent(ID) {
+    ;set check var
+	allSibChecked := true
+
+	;get parent and first sibling
+	parentID := TV.GetParent(ID)
+	siblingID := TV.GetChild(parentID)
+
+	;loop all siblings
+	Loop {
+		if (siblingID = 0) {
+			break
+		}
+
+		;if any siblings unchecked, break
+		if (TV.Get(siblingID, "C") != siblingID) {
+			allSibChecked := false
+			break
+		}
+		siblingID := TV.GetNext(siblingID)
+	}
+
+	;set parent to checked if all children checked
+	parentID := TV.Modify(parentID, (allSibChecked ? "" : "-") "Check")
+
+	;call on parent, stops when no parent
+	if (parentID != 0) {
+		updateParent(parentID)
+	}
+}
